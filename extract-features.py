@@ -65,6 +65,13 @@ def extract_features(tokens) :
          tokenFeatures.append("suf3Next="+tNext[-3:])
       else:
          tokenFeatures.append("EoS")
+
+      # Add new features
+      #tokenFeatures.append(f"len={len(t)}")
+      # Is it in DrugBank?
+      # Capitalization
+      # Following token
+      # Following is numeric (or numeric+text)
     
       result.append(tokenFeatures)
     
