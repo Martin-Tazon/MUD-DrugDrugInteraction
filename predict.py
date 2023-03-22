@@ -42,16 +42,16 @@ if __name__ == '__main__':
             y = predictions[k]
             (sid, form, offS, offE) = toks[k]
             
-            if (y[0]=="B") :
+            if (y[0]=="B") :	# If predicted B --> Save form, limits and type
                 entity_form = form
                 entity_start = offS
                 entity_end = offE
                 entity_type = y[2:]
                 inside = True
-            elif (y[0]=="I" and inside) :
+            elif (y[0]=="I" and inside) : # If predicted I --> Extend form and update end limit
                 entity_form += " "+form
                 entity_end = offE
-            elif (y[0]=="O" and inside) :
+            elif (y[0]=="O" and inside) : # If predicted O but was in insede --> Save result and set insede=F
                 print(sid, entity_start+"-"+entity_end, entity_form, entity_type, sep="|")
                 inside = False
         
