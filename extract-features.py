@@ -7,8 +7,20 @@ from os import listdir
 from xml.dom.minidom import parse
 from nltk.tokenize import word_tokenize
 
+prefixes = ['acetyl', 'amino', 'anti', 'azo', 'bromo', 'cyclo', 'deoxy', 'di', 'dihydro', 'erythro', 'fluoro', 'hydroxy', 'iso', 'lipo', 'meta', 'methyl', 'neo', 'ortho', 'para', 'phenyl', 'phospho', 'pro', 'pyrro', 'sulfo', 'thio', 'trans', 'tri']
+suffixes = ['amine', 'azole', 'cillin', 'cycline', 'dazole', 'dine', 'dronate', 'fenac', 'fil', 'floxacin', 'gliptin', 'ine', 'lamide', 'mab', 'nib', 'ol', 'oprazole', 'oxacin', 'parin', 'phylline', 'prazole', 'ridone', 'sartan', 'setron', 'statin', 'tidine', 'triptan', 'vastatin', 'vir', 'zepam', 'zide', 'zole']
 
-   
+
+lookupDrugs = {}
+with open("../lab1/DDI/resources/HSDB.txt", encoding="utf-8") as f:
+    for d in f.readlines():
+        lookupDrugs[d.strip().lower()] = "drug"
+with open("../lab1/DDI/resources/DrugBank.txt", encoding="utf-8") as f:
+    for d in f.readlines():
+        (t, c) = d.strip().lower().split("|")
+        lookupDrugs[t] = c
+
+
 ## --------- tokenize sentence ----------- 
 ## -- Tokenize sentence, returning tokens and span offsets
 
@@ -37,6 +49,17 @@ def get_tag(token, spans) :
       elif start>=spanS and end<=spanE : return "I-"+spanT
 
    return "O"
+
+def iscamel(s):
+   return (s != s.lower() and s != s.upper() and "_" not in s)
+
+def capitalRatio(s):
+    capitalLetters = sum(1 for c in s if c.isupper())
+    totalLetters = len(s)
+    if totalLetters == 0:
+        return 0
+    else:
+        return capitalLetters / totalLetters
  
 ## --------- Feature extractor ----------- 
 ## -- Extract features for each token in given sentence
@@ -46,8 +69,58 @@ def extract_features(tokens) :
    # for each token, generate list of features and add it to the result
    result = []
    for k in range(0,len(tokens)):
-      tokenFeatures = [];
+      tokenFeatures = []
       t = tokens[k][0]
+
+      # New token features
+      # Get length
+      tokenFeatures.append("len="+str(len(t)))
+
+      # Types of cases
+      tokenFeatures.append("lowercase="+str(t.islower()))
+      tokenFeatures.append("uppercase="+str(t.isupper()))
+      # tokenFeatures.append("titlecase="+str(t.istitle()))
+      tokenFeatures.append("camelcase="+str(iscamel(t)))
+      tokenFeatures.append("hasPrefix="+str(t in prefixes))
+      tokenFeatures.append("hasSuffix="+str(t in suffixes))
+
+      # Check lookup files
+      tokenFeatures.append("isDrug="+str("drug" == lookupDrugs[t.lower()] if t.lower() in lookupDrugs.keys() else "F"))
+      tokenFeatures.append("isDrugN="+str("drug_n" == lookupDrugs[t.lower()] if t.lower() in lookupDrugs.keys() else "F"))
+      tokenFeatures.append("isBrand="+str("brand" == lookupDrugs[t.lower()] if t.lower() in lookupDrugs.keys() else "F"))
+      tokenFeatures.append("isGroup="+str("group" == lookupDrugs[t.lower()] if t.lower() in lookupDrugs.keys() else "F"))
+
+      # Numeric characters
+      tokenFeatures.append("hasNumbers="+str(any(c.isdigit() for c in t)))
+      
+      # Containes dashes or parantheses
+      tokenFeatures.append("hasDashes="+str('-' in t))
+      tokenFeatures.append("hasOpenPar="+str('(' in t))
+      tokenFeatures.append("hasClosePar="+str(')' in t))
+      
+      # Number of dashes
+      tokenFeatures.append("numDash="+str(t.lower().count('-')))
+      tokenFeatures.append("numOpenPar="+str(t.lower().count('(')))
+      tokenFeatures.append("numClosePar="+str(t.lower().count(')')))
+      
+      # Contains non-alphanumeric
+      tokenFeatures.append("isAlphaNum="+str(t.isalnum()))
+
+      # Number of x, y and z
+      tokenFeatures.append("numX="+str(t.lower().count('x')))
+      tokenFeatures.append("numY ="+str(t.lower().count('y')))
+      tokenFeatures.append("numZ="+str(t.lower().count('z')))
+
+      # Ratio of capital letters
+      # tokenFeatures.append("ratioCaps="+str(capitalRatio(t) > 0.5))
+
+      
+      if k<len(tokens)-1 :
+         tokenFeatures.append("nextHasNumbers="+str(any(c.isdigit() for c in tokens[k+1][0])))
+         
+
+
+      ####################
 
       tokenFeatures.append("form="+t)
       tokenFeatures.append("suf3="+t[-3:])

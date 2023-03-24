@@ -1,6 +1,7 @@
 #! /bin/bash
 
-BASEDIR=../lab_resources/DDI/
+# BASEDIR=../lab_resources/DDI/
+BASEDIR=../lab1/DDI/
 
 # convert datasets to feature vectors
 echo "Extracting features..."
