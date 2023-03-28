@@ -23,15 +23,15 @@ python3 evaluator.py NER $BASEDIR/data/devel devel-CRF.out > devel-CRF.stats
 cat train.feat | cut -f5- | grep -v ^$ > train.clf.feat
 
 
-# train Naive Bayes model
-echo "Training Naive Bayes model..."
-python3 train-sklearn.py model.joblib vectorizer.joblib < train.clf.feat
-# run Naive Bayes model
-echo "Running Naive Bayes model..."
-python3 predict-sklearn.py model.joblib vectorizer.joblib < devel.feat > devel-NB.out
-# evaluate Naive Bayes results 
-echo "Evaluating Naive Bayes results..."
-python3 evaluator.py NER $BASEDIR/data/devel devel-NB.out > devel-NB.stats
+# # train Naive Bayes model
+# echo "Training Naive Bayes model..."
+# python3 train-sklearn.py model.joblib vectorizer.joblib < train.clf.feat
+# # run Naive Bayes model
+# echo "Running Naive Bayes model..."
+# python3 predict-sklearn.py model.joblib vectorizer.joblib < devel.feat > devel-NB.out
+# # evaluate Naive Bayes results 
+# echo "Evaluating Naive Bayes results..."
+# python3 evaluator.py NER $BASEDIR/data/devel devel-NB.out > devel-NB.stats
 
 # remove auxiliary files.
 rm train.clf.feat
