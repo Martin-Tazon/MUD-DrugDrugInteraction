@@ -35,8 +35,11 @@ def get_tag(token, spans) :
         elif start>=spanS and end<=spanE : return "I-"+spanT
     return "O"
 
-def iscamel(s):
+def isCamel(s):
     return (s != s.lower() and s != s.upper() and "_" not in s)
+
+def isFirstCap(s):
+    return s[0].isupper() and s[1:].islower()
 
 def capitalRatio(s):
     capitalLetters = sum(1 for c in s if c.isupper())
@@ -62,67 +65,90 @@ def extract_features(tokens) :
         tokenFeatures.append("suf3="+t[-3:])
         tokenFeatures.append("suf6="+t[-6:])
         
-        # Get length
-        tokenFeatures.append("len="+str(len(t)))
-        # Is the token extremely large
-        tokenFeatures.append("longToken="+str(len(t)>25))
-        
         # Types of cases
         tokenFeatures.append("lowercase="+str(t.islower()))
         tokenFeatures.append("uppercase="+str(t.isupper()))
-        tokenFeatures.append("camelcase="+str(iscamel(t)))
-        tokenFeatures.append("hasPrefix="+str(t in prefixes))
-        tokenFeatures.append("hasSuffix="+str(t in suffixes))
-        # tokenFeatures.append("titlecase="+str(t.istitle()))
+        tokenFeatures.append("camelcase="+str(isCamel(t)))
+        tokenFeatures.append("firstuppercase="+str(isFirstCap(t)))
+
+        ## Change to lowercase
+        t = t.lower()
         
-        # Check lookup files
-        tokenFeatures.append("isDrug="+str("drug" == lookupDrugs[t.lower()] if t.lower() in lookupDrugs.keys() else "F"))
-        tokenFeatures.append("isDrugN="+str("drug_n" == lookupDrugs[t.lower()] if t.lower() in lookupDrugs.keys() else "F"))
-        tokenFeatures.append("isBrand="+str("brand" == lookupDrugs[t.lower()] if t.lower() in lookupDrugs.keys() else "F"))
-        tokenFeatures.append("isGroup="+str("group" == lookupDrugs[t.lower()] if t.lower() in lookupDrugs.keys() else "F"))
+        # Has prefix or suffix
+        tokenFeatures.append("hasPrefix="+str(any(t.startswith(p) for p in prefixes)))
+        tokenFeatures.append("hasSuffix="+str(any(t.endswith(s) for s in suffixes)))
+        
+        # Get length
+        tokenFeatures.append("len="+str(len(t)))
+        # Is the token large
+        tokenFeatures.append("longToken="+str(len(t)>8))
+        
+        ## Check lookup files
+        #tokenFeatures.append("isDrug="+str("drug" == lookupDrugs[t.lower()] if t.lower() in lookupDrugs.keys() else "F"))
+        #tokenFeatures.append("isDrugN="+str("drug_n" == lookupDrugs[t.lower()] if t.lower() in lookupDrugs.keys() else "F"))
+        #tokenFeatures.append("isBrand="+str("brand" == lookupDrugs[t.lower()] if t.lower() in lookupDrugs.keys() else "F"))
+        #tokenFeatures.append("isGroup="+str("group" == lookupDrugs[t.lower()] if t.lower() in lookupDrugs.keys() else "F"))
+
+        # Check lookup files V2
+        for kind in lookupDrugs.keys():
+            known = lookupDrugs[kind]
+            inDBank = t in known
+            if inDBank:
+                tokenFeatures.append(f"inDB{kind}=True")
+            else:
+                asPart = any([ t in k.split() for k in known ])
+                if asPart:
+                    tokenFeatures.append(f"inDB{kind}=Partial")
+                else:
+                    tokenFeatures.append(f"inDB{kind}=False")
         
         # Numeric characters
         tokenFeatures.append("hasNumbers="+str(any(c.isdigit() for c in t)))
+        tokenFeatures.append("isNumbers="+str(t.isdigit()))
         
-        ## Containes dashes or parantheses    # The following gives the same info.
-        tokenFeatures.append("hasDashes="+str('-' in t))
-        tokenFeatures.append("hasOpenPar="+str('(' in t))
-        tokenFeatures.append("hasClosePar="+str(')' in t))
+        ### Containes dashes or parantheses    # The following gives the same info.
+        #tokenFeatures.append("hasDashes="+str('-' in t))
+        #tokenFeatures.append("hasOpenPar="+str('(' in t))
+        #tokenFeatures.append("hasClosePar="+str(')' in t))
+        tokenFeatures.append("hasSymbols="+str(any(c in symbols for c in t)))
         
-      #   # Number of dashes
-      #   tokenFeatures.append("numDash="+str(t.lower().count('-')))
-      #   tokenFeatures.append("numOpenPar="+str(t.lower().count('(')))
-      #   tokenFeatures.append("numClosePar="+str(t.lower().count(')')))
+        ## Number of dashes
+        #tokenFeatures.append("numDash="+str(t.lower().count('-')))
+        #tokenFeatures.append("numOpenPar="+str(t.lower().count('(')))
+        #tokenFeatures.append("numClosePar="+str(t.lower().count(')')))
         
         # Contains non-alphanumeric
         tokenFeatures.append("isAlphaNum="+str(t.isalnum()))
         
-      #   # Number of x, y and z
-      #   tokenFeatures.append("numX="+str(t.lower().count('x')))
-      #   tokenFeatures.append("numY ="+str(t.lower().count('y')))
-        tokenFeatures.append("numZ="+str(t.lower().count('z')))
+        ## Number of x, y and z
+        #tokenFeatures.append("numX="+str(t.lower().count('x')))
+        #tokenFeatures.append("numY ="+str(t.lower().count('y')))
+        #tokenFeatures.append("numZ="+str(t.lower().count('z')))
         
         # Ratio of capital letters
         # tokenFeatures.append("ratioCaps="+str(capitalRatio(t) > 0.5))
 
-        # Has a term useful to identify groups
-      #   tokenFeatures.append("hasGroupTerm="+str(t in termsForGroups))
+        # Has a term useful to identify groups --> Reduces drug_n
+        #tokenFeatures.append("hasGroupTerm="+str(t in termsForGroups))
         
         ####################
         ### Previous token features
         
         if k>0 :
-          tPrev = tokens[k-1][0]
+          tPrev = tokens[k-1][0].lower()
           tokenFeatures.append("formPrev="+tPrev)
           tokenFeatures.append("suf3Prev="+tPrev[-3:])
           tokenFeatures.append("suf6Prev="+tPrev[-6:])
           tokenFeatures.append("lenPrev="+str(len(tPrev)))
           tokenFeatures.append("hasNumbersPrev="+str(any(c.isdigit() for c in tPrev)))
+          #tokenFeatures.append("hasPrefixPrev="+str(any(tPrev.startswith(p) for p in prefixes)))
+          #tokenFeatures.append("hasSuffixPrev="+str(any(tPrev.endswith(s) for s in suffixes)))
+          #tokenFeatures.append("hasSymbolsPrev="+str(any(c in symbols for c in tPrev)))
         else :
           tokenFeatures.append("BoS")
         
         if k>1 :
-          tPrev2 = tokens[k-2][0]
+          tPrev2 = tokens[k-2][0].lower()
           tokenFeatures.append("formPrev2="+tPrev2)
           tokenFeatures.append("suf3Prev2="+tPrev2[-3:])
           tokenFeatures.append("lenPrev2="+str(len(tPrev2)))
@@ -131,7 +157,7 @@ def extract_features(tokens) :
           pass # add something?
         
         if k>2 :
-          tPrev3 = tokens[k-3][0]
+          tPrev3 = tokens[k-3][0].lower()
           tokenFeatures.append("formPrev3="+tPrev3)
           tokenFeatures.append("suf3Prev3="+tPrev3[-3:])
           tokenFeatures.append("lenPrev3="+str(len(tPrev3)))
@@ -143,28 +169,30 @@ def extract_features(tokens) :
         ### Next token features
         
         if k<len(tokens)-1 :
-          tNext = tokens[k+1][0]
+          tNext = tokens[k+1][0].lower()
           tokenFeatures.append("formNext="+tNext)
           tokenFeatures.append("suf3Next="+tNext[-3:])
           tokenFeatures.append("lenNext="+str(len(tNext)))
           tokenFeatures.append("hasNumbersNext="+str(any(c.isdigit() for c in tNext)))
-          tokenFeatures.append("hasGroupTermNext="+str(tNext in termsForGroups))
+          #tokenFeatures.append("hasGroupTermNext="+str(tNext in termsForGroups))
+          #tokenFeatures.append("hasPrefixNext="+str(any(tNext.startswith(p) for p in prefixes)))
+          #tokenFeatures.append("hasSuffixNext="+str(any(tNext.endswith(s) for s in suffixes)))
+          #tokenFeatures.append("hasSymbolsNext="+str(any(c in symbols for c in tNext)))
         else:
           tokenFeatures.append("EoS")
         
         if k<len(tokens)-2 :
-          tNext2 = tokens[k+2][0]
+          tNext2 = tokens[k+2][0].lower()
           tokenFeatures.append("formNext2="+tNext2)
           tokenFeatures.append("suf3Next2="+tNext2[-3:])
           tokenFeatures.append("lenNext2="+str(len(tNext2)))
           tokenFeatures.append("hasNumbersNext2="+str(any(c.isdigit() for c in tNext2)))
+          #tokenFeatures.append("hasPrefixNext2="+str(any(tNext2.startswith(p) for p in prefixes)))
+          #tokenFeatures.append("hasSuffixNext2="+str(any(tNext2.endswith(s) for s in suffixes)))
+          #tokenFeatures.append("hasSymbolsNext2="+str(any(c in symbols for c in tNext2)))
         else:
           pass
         
-        
-        # Following token
-        # Following is numeric (or numeric+text)
-     
         result.append(tokenFeatures)
      
     return result
@@ -186,15 +214,17 @@ prefixes = ['acetyl', 'amino', 'anti', 'azo', 'bromo', 'cyclo', 'deoxy', 'di', '
 suffixes = ['amine', 'azole', 'cillin', 'cycline', 'dazole', 'dine', 'dronate', 'fenac', 'fil', 'floxacin', 'gliptin', 'ine', 'lamide', 'mab', 'nib', 'ol', 'oprazole', 'oxacin', 'parin', 'phylline', 'prazole', 'ridone', 'sartan', 'setron', 'statin', 'tidine', 'triptan', 'vastatin', 'vir', 'zepam', 'zide', 'zole']
 
 termsForGroups = ['drugs', 'medicines', 'agents', 'supplements', 'medications', 'products', 'preparation', 'agonists', 'adjuvants', 'antagonists', 'blockers', 'inhibitors']
+symbols = ["[","]","(",")","{","}","-","_"]
+
 
 lookupDrugs = {}
-# with open(datadir+"/../../resources/HSDB.txt", encoding="utf-8") as f:
-#     for d in f.readlines():
-#         lookupDrugs[d.strip().lower()] = "drug_n"
 with open(datadir+"/../../resources/DrugBank.txt", encoding="utf-8") as f:
     for d in f.readlines():
         (t, c) = d.strip().lower().split("|")
-        lookupDrugs[t] = c
+        if c not in lookupDrugs:
+            lookupDrugs[c] = [t]
+        else:
+            lookupDrugs[c].append(t)
 
 
 # process each file in directory
